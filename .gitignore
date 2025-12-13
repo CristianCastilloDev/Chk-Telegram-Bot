@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Firebase credentials
+firebase-credentials.json
+serviceAccountKey.json
+*-firebase-adminsdk-*.json
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Debug scripts (opcional, puedes comentar si quieres subirlos)
+debug-*.js
+test-*.js
+fix-*.js
+update-*.js
+
+# Temporary files
+*.tmp
+*.temp

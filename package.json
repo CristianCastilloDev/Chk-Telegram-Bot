@@ -1,0 +1,32 @@
+{
+  "name": "chk-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot integration for Chk Web Beta dashboard",
+  "main": "src/bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "node --watch src/bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "firebase",
+    "checker",
+    "gates"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "telegraf": "^4.16.3",
+    "firebase-admin": "^12.6.0",
+    "dotenv": "^16.4.5",
+    "axios": "^1.7.9",
+    "node-cron": "^3.0.3",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
