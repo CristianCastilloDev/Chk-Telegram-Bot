@@ -8,6 +8,7 @@ class RegistrationService {
   constructor(bot) {
     this.bot = bot;
     this.unsubscribe = null;
+    this.initialized = false;
   }
 
   /**
@@ -21,6 +22,13 @@ class RegistrationService {
     this.unsubscribe = registrationsRef
       .where('status', '==', 'pending')
       .onSnapshot(async (snapshot) => {
+        // Skip initial snapshot
+        if (!this.initialized) {
+          console.log('📝 Initial snapshot received, skipping', snapshot.size, 'existing registrations');
+          this.initialized = true;
+          return;
+        }
+
         console.log('📝 Registrations snapshot received! Changes:', snapshot.docChanges().length);
         
         snapshot.docChanges().forEach(async (change) => {

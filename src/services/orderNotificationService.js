@@ -8,6 +8,7 @@ class OrderNotificationService {
   constructor(bot) {
     this.bot = bot;
     this.unsubscribe = null;
+    this.initialized = false; // Track if initial snapshot has been processed
   }
 
   /**
@@ -21,6 +22,13 @@ class OrderNotificationService {
     this.unsubscribe = ordersRef
       .where('status', '==', 'pending')
       .onSnapshot(async (snapshot) => {
+        // Skip initial snapshot (existing documents)
+        if (!this.initialized) {
+          console.log('📦 Initial snapshot received, skipping', snapshot.size, 'existing orders');
+          this.initialized = true;
+          return;
+        }
+
         console.log('📦 Orders snapshot received! Changes:', snapshot.docChanges().length);
         
         snapshot.docChanges().forEach(async (change) => {

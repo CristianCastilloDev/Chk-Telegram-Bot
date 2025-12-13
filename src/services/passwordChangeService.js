@@ -8,6 +8,7 @@ class PasswordChangeService {
   constructor(bot) {
     this.bot = bot;
     this.unsubscribe = null;
+    this.initialized = false;
   }
 
   /**
@@ -31,14 +32,21 @@ class PasswordChangeService {
     this.unsubscribe = changesRef
       .where('used', '==', false)
       .onSnapshot(async (snapshot) => {
+        // Skip initial snapshot
+        if (!this.initialized) {
+          console.log('🔐 Initial snapshot received, skipping', snapshot.size, 'existing changes');
+          this.initialized = true;
+          return;
+        }
+
         console.log('🔐 Snapshot received! Changes:', snapshot.docChanges().length);
         
         snapshot.docChanges().forEach(async (change) => {
           console.log('🔐 Change type:', change.type);
           
           if (change.type === 'added') {
-            const changeData = change.doc.data(); // Fixed: use change.doc.data()
-            const changeId = change.doc.id;       // Fixed: use change.doc.id
+            const changeData = change.doc.data();
+            const changeId = change.doc.id;
 
             console.log('🔐 New password change request detected:', {
               changeId: changeId,

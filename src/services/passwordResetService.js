@@ -8,6 +8,7 @@ class PasswordResetService {
   constructor(bot) {
     this.bot = bot;
     this.unsubscribe = null;
+    this.initialized = false;
   }
 
   /**
@@ -21,6 +22,13 @@ class PasswordResetService {
     this.unsubscribe = resetsRef
       .where('status', '==', 'pending')
       .onSnapshot(async (snapshot) => {
+        // Skip initial snapshot
+        if (!this.initialized) {
+          console.log('🔑 Initial snapshot received, skipping', snapshot.size, 'existing resets');
+          this.initialized = true;
+          return;
+        }
+
         console.log('🔑 Password resets snapshot received! Changes:', snapshot.docChanges().length);
         
         snapshot.docChanges().forEach(async (change) => {
