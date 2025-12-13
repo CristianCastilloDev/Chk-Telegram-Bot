@@ -31,7 +31,7 @@ Bot de Telegram para gestión de usuarios, créditos, planes y verificación de 
 1. **Clonar el repositorio**
 
 ```bash
-git clone <tu-repo>
+git clone https://github.com/CristianCastilloDev/Chk-Telegram-Bot
 cd Chk_Telegram_Bot
 ```
 
