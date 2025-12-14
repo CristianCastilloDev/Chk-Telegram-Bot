@@ -47,18 +47,15 @@ export const binCommand = async (ctx) => {
     const day = String(now.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    // Format with normal text for labels and monospace for values
-    let message = `${user.name || user.username || 'Usuario'}\n`;
-    message += `/bin ${bin}\n\n`;
-    message += `bin : \`${bin}\`\n`;
-    message += `iin : \`${bin}\`\n`;
-    message += `issuer : \`${binInfo.bank || 'Unknown'}\`\n`;
-    message += `brand : \`${binInfo.brand || 'Unknown'}\`\n`;
-    message += `type : \`${binInfo.type || 'Unknown'}\`\n`;
-    message += `category : \`${binInfo.level || 'STANDARD'}\`\n`;
-    message += `country : \`${binInfo.country || 'Unknown'}\`\n`;
-    message += `country_code : \`${binInfo.countryCode || 'XX'}\`\n`;
-    message += `update : \`${dateStr}\``;
+    // Format with icons and monospace for values only
+    let message = `💳 bin : \`${bin}\`\n`;
+    message += `🏦 issuer : \`${binInfo.bank || 'Unknown'}\`\n`;
+    message += `🔖 brand : \`${binInfo.brand || 'Unknown'}\`\n`;
+    message += `📇 type : \`${binInfo.type || 'Unknown'}\`\n`;
+    message += `⭐ category : \`${binInfo.level || 'STANDARD'}\`\n`;
+    message += `🌍 country : \`${binInfo.country || 'Unknown'}\`\n`;
+    message += `🗺️ country_code : \`${binInfo.countryCode || 'XX'}\`\n`;
+    message += `📅 update : \`${dateStr}\``;
 
 
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
