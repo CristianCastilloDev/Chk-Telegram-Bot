@@ -6,13 +6,13 @@ import { lookupBin } from '../../services/binService.js';
  */
 export const binCommand = async (ctx) => {
   const user = ctx.user;
-  
+
   if (!user) {
     return ctx.reply('⚠️ Tu cuenta no está vinculada. Usa /start para vincularla.');
   }
-  
+
   const args = ctx.message.text.split(' ').slice(1);
-  
+
   if (args.length === 0) {
     return ctx.reply(
       `🔍 *Consultar BIN*\n\n` +
@@ -22,38 +22,49 @@ export const binCommand = async (ctx) => {
       { parse_mode: 'Markdown' }
     );
   }
-  
+
   const bin = args[0].trim();
-  
+
   // Validate BIN format
   if (!/^\d{6,8}$/.test(bin)) {
     return ctx.reply('❌ BIN inválido. Debe tener 6-8 dígitos.');
   }
-  
+
   const processingMsg = await ctx.reply('🔍 Consultando BIN...');
-  
+
   try {
     const binInfo = await lookupBin(bin, user.uid);
-    
+
     if (!binInfo) {
       await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
       return ctx.reply('❌ No se encontró información para este BIN.');
     }
-    
-    let message = `🔍 *Información del BIN: ${bin}*\n\n`;
-    message += `🏦 *Banco:* ${binInfo.bank || 'Unknown'}\n`;
-    message += `💎 *Tipo:* ${binInfo.type || 'Unknown'}\n`;
-    message += `💳 *Marca:* ${binInfo.brand || 'Unknown'}\n`;
-    message += `🌍 *País:* ${binInfo.country || 'Unknown'}\n`;
-    message += `🏛️ *Nivel:* ${binInfo.level || 'Unknown'}\n`;
-    
-    if (binInfo.prepaid !== undefined) {
-      message += `💰 *Prepago:* ${binInfo.prepaid ? 'Sí' : 'No'}\n`;
-    }
-    
+
+    // Format as code block for easy copying
+    let codeBlock = `bin:${bin}\n`;
+    codeBlock += `iin:${bin}\n`;
+    codeBlock += `issuer:${binInfo.bank || 'Unknown'}\n`;
+    codeBlock += `brand:${binInfo.brand || 'Unknown'}\n`;
+    codeBlock += `type:${binInfo.type || 'Unknown'}\n`;
+    codeBlock += `category:${binInfo.level || 'STANDARD'}\n`;
+    codeBlock += `country:${binInfo.country || 'Unknown'}\n`;
+    codeBlock += `country_code:${binInfo.countryCode || 'XX'}\n`;
+
+    // Get current timestamp
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${minutes}`;
+
+    // Header with username and bin
+    const header = `${user.name || user.username || 'Usuario'}\n/bin ${bin}`;
+
+    // Send message with code block
+    const message = `${header}\n\`\`\`\n${codeBlock}\`\`\``;
+
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
     await ctx.reply(message, { parse_mode: 'Markdown' });
-    
+
   } catch (error) {
     console.error('Error in bin command:', error);
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
