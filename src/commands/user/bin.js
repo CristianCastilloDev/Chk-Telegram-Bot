@@ -41,26 +41,30 @@ export const binCommand = async (ctx) => {
     }
 
     // Format as code block for easy copying
-    let codeBlock = `bin:${bin}\n`;
-    codeBlock += `iin:${bin}\n`;
-    codeBlock += `issuer:${binInfo.bank || 'Unknown'}\n`;
-    codeBlock += `brand:${binInfo.brand || 'Unknown'}\n`;
-    codeBlock += `type:${binInfo.type || 'Unknown'}\n`;
-    codeBlock += `category:${binInfo.level || 'STANDARD'}\n`;
-    codeBlock += `country:${binInfo.country || 'Unknown'}\n`;
-    codeBlock += `country_code:${binInfo.countryCode || 'XX'}\n`;
+    let codeBlock = `bin : ${bin}\n`;
+    codeBlock += `iin : ${bin}\n`;
+    codeBlock += `issuer : ${binInfo.bank || 'Unknown'}\n`;
+    codeBlock += `brand : ${binInfo.brand || 'Unknown'}\n`;
+    codeBlock += `type : ${binInfo.type || 'Unknown'}\n`;
+    codeBlock += `category : ${binInfo.level || 'STANDARD'}\n`;
+    codeBlock += `country : ${binInfo.country || 'Unknown'}\n`;
+    codeBlock += `country_code : ${binInfo.countryCode || 'XX'}\n`;
 
-    // Get current timestamp
+    // Get current date in YYYY-MM-DD format
     const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const timeStr = `${hours}:${minutes}`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    codeBlock += `update : ${dateStr}`;
 
     // Header with username and bin
     const header = `${user.name || user.username || 'Usuario'}\n/bin ${bin}`;
 
-    // Send message with code block
-    const message = `${header}\n\`\`\`\n${codeBlock}\`\`\``;
+    // Send message with code block (monospace)
+    const message = `${header}\n\`\`\`\n${codeBlock}\n\`\`\``;
+
 
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
     await ctx.reply(message, { parse_mode: 'Markdown' });
