@@ -40,16 +40,6 @@ export const binCommand = async (ctx) => {
       return ctx.reply('❌ No se encontró información para este BIN.');
     }
 
-    // Format as code block for easy copying
-    let codeBlock = `bin : ${bin}\n`;
-    codeBlock += `iin : ${bin}\n`;
-    codeBlock += `issuer : ${binInfo.bank || 'Unknown'}\n`;
-    codeBlock += `brand : ${binInfo.brand || 'Unknown'}\n`;
-    codeBlock += `type : ${binInfo.type || 'Unknown'}\n`;
-    codeBlock += `category : ${binInfo.level || 'STANDARD'}\n`;
-    codeBlock += `country : ${binInfo.country || 'Unknown'}\n`;
-    codeBlock += `country_code : ${binInfo.countryCode || 'XX'}\n`;
-
     // Get current date in YYYY-MM-DD format
     const now = new Date();
     const year = now.getFullYear();
@@ -57,13 +47,18 @@ export const binCommand = async (ctx) => {
     const day = String(now.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    codeBlock += `update : ${dateStr}`;
-
-    // Header with username and bin
-    const header = `${user.name || user.username || 'Usuario'}\n/bin ${bin}`;
-
-    // Send message with code block (monospace)
-    const message = `${header}\n\`\`\`\n${codeBlock}\n\`\`\``;
+    // Format with normal text for labels and monospace for values
+    let message = `${user.name || user.username || 'Usuario'}\n`;
+    message += `/bin ${bin}\n\n`;
+    message += `bin : \`${bin}\`\n`;
+    message += `iin : \`${bin}\`\n`;
+    message += `issuer : \`${binInfo.bank || 'Unknown'}\`\n`;
+    message += `brand : \`${binInfo.brand || 'Unknown'}\`\n`;
+    message += `type : \`${binInfo.type || 'Unknown'}\`\n`;
+    message += `category : \`${binInfo.level || 'STANDARD'}\`\n`;
+    message += `country : \`${binInfo.country || 'Unknown'}\`\n`;
+    message += `country_code : \`${binInfo.countryCode || 'XX'}\`\n`;
+    message += `update : \`${dateStr}\``;
 
 
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
