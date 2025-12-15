@@ -47,19 +47,19 @@ export const binCommand = async (ctx) => {
     const day = String(now.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    // Format with icons and monospace for values only
-    let message = `💳 bin : \`${bin}\`\n`;
-    message += `🏦 issuer : \`${binInfo.bank || 'Unknown'}\`\n`;
-    message += `🔖 brand : \`${binInfo.brand || 'Unknown'}\`\n`;
-    message += `📇 type : \`${binInfo.type || 'Unknown'}\`\n`;
-    message += `⭐ category : \`${binInfo.level || 'STANDARD'}\`\n`;
-    message += `🌍 country : \`${binInfo.country || 'Unknown'}\`\n`;
-    message += `🗺️ country_code : \`${binInfo.countryCode || 'XX'}\`\n`;
-    message += `📅 update : \`${dateStr}\``;
+    // Format with icons and monospace for values only (using HTML for better compatibility)
+    let message = '💳 BIN : <code>' + bin + '</code>\n';
+    message += '🏦 BANCO : <code>' + (binInfo.bank || 'Unknown') + '</code>\n';
+    message += '🔖 CARD_TYPE : <code>' + (binInfo.brand || 'Unknown') + '</code>\n';
+    message += '📇 TYPE : <code>' + (binInfo.type || 'Unknown') + '</code>\n';
+    message += '⭐ CATEGORY : <code>' + (binInfo.level || 'STANDARD') + '</code>\n';
+    message += '🌍 COUNTRY : <code>' + (binInfo.country || 'Unknown') + '</code>\n';
+    message += '🗺️ COUNTRY_CODE : <code>' + (binInfo.countryCode || 'XX') + '</code>\n';
+    message += '📅 UPDATE : <code>' + dateStr + '</code>';
 
 
     await ctx.telegram.deleteMessage(ctx.chat.id, processingMsg.message_id);
-    await ctx.reply(message, { parse_mode: 'Markdown' });
+    await ctx.reply(message, { parse_mode: 'HTML' });
 
   } catch (error) {
     console.error('Error in bin command:', error);
