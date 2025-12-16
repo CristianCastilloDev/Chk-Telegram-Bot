@@ -18,6 +18,7 @@ import PasswordUpdateService from './services/passwordUpdateService.js';
 import { handleApproveCallback, handleRejectCallback } from './handlers/orderCallbacks.js';
 import { handleConfirmRegistration, handleCancelRegistration } from './handlers/registrationCallbacks.js';
 import { handleConfirmReset, handleCancelReset } from './handlers/passwordResetCallbacks.js';
+import { handleGatesMenu, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -115,12 +116,18 @@ bot.action(/^cancel_reg_/, handleCancelRegistration);
 bot.action(/^confirm_reset_/, handleConfirmReset);
 bot.action(/^cancel_reset_/, handleCancelReset);
 
+// Menu callback handlers (auth required)
+bot.action('menu_gates', requireAuth, handleGatesMenu);
+bot.action('menu_tools', requireAuth, handleToolsMenu);
+bot.action('menu_dev', requireAuth, handleDevMenu);
+bot.action('back_to_start', requireAuth, handleBackToStart);
+
 // ========== BOT LAUNCH ==========
 
 // Handle graceful shutdown
 const shutdown = async (signal) => {
   logger.info(`Received ${signal}, shutting down gracefully...`);
-  
+
   try {
     // Stop services
     passwordChangeService.stop();
@@ -128,7 +135,7 @@ const shutdown = async (signal) => {
     registrationService.stop();
     passwordResetService.stop();
     passwordUpdateService.stop();
-    
+
     await bot.stop(signal);
     logger.info('Bot stopped successfully');
     process.exit(0);
