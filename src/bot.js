@@ -19,6 +19,7 @@ import { handleApproveCallback, handleRejectCallback } from './handlers/orderCal
 import { handleConfirmRegistration, handleCancelRegistration } from './handlers/registrationCallbacks.js';
 import { handleConfirmReset, handleCancelReset } from './handlers/passwordResetCallbacks.js';
 import { handleGatesMenu, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
+import { handleBuyPlan } from './handlers/purchaseOrderCallbacks.js';
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -28,6 +29,7 @@ import planCommand from './commands/user/plan.js';
 import checkCommand from './commands/user/check.js';
 import mylivesCommand from './commands/user/mylives.js';
 import binCommand from './commands/user/bin.js';
+import buyCommand from './commands/user/buy.js';
 
 // Import admin commands
 import usersCommand from './commands/admin/users.js';
@@ -89,6 +91,7 @@ bot.command('creditos', requireAuth, creditosCommand);
 bot.command('plan', requireAuth, planCommand);
 bot.command('mylives', requireAuth, mylivesCommand);
 bot.command('bin', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.BIN), binCommand);
+bot.command('buy', requireAuth, buyCommand);
 
 // Gate commands (auth required + cooldown)
 bot.command('check', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.CHECK), checkCommand);
@@ -121,6 +124,9 @@ bot.action('menu_gates', requireAuth, handleGatesMenu);
 bot.action('menu_tools', requireAuth, handleToolsMenu);
 bot.action('menu_dev', requireAuth, handleDevMenu);
 bot.action('back_to_start', requireAuth, handleBackToStart);
+
+// Purchase order callbacks
+bot.action(/^buy_/, requireAuth, handleBuyPlan);
 
 // ========== BOT LAUNCH ==========
 

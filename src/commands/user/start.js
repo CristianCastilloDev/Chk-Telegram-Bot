@@ -11,6 +11,9 @@ export const startCommand = async (ctx) => {
   try {
     // Check if already linked
     if (ctx.user) {
+      // Check if user is admin or dev
+      const isAdminOrDev = ctx.user.role === 'admin' || ctx.user.role === 'dev';
+
       // Calculate valid until date (plan expiration)
       let validUntil = 'N/A';
       if (ctx.user.plan?.expiresAt) {
@@ -22,30 +25,38 @@ export const startCommand = async (ctx) => {
         });
       }
 
-      // Format plan name
-      const planName = ctx.user.plan?.type
-        ? ctx.user.plan.type.charAt(0).toUpperCase() + ctx.user.plan.type.slice(1) + ' Plan'
-        : 'Free Plan';
+      // Format credits display
+      const creditsDisplay = isAdminOrDev ? 'Ilimitados' : (ctx.user.credits || 0);
+
+      // Format plan/role name
+      let planDisplay;
+      if (isAdminOrDev) {
+        planDisplay = ctx.user.role === 'dev' ? 'Dev' : 'Admin';
+      } else {
+        planDisplay = ctx.user.plan?.type
+          ? ctx.user.plan.type.charAt(0).toUpperCase() + ctx.user.plan.type.slice(1) + ' Plan'
+          : 'Free Plan';
+      }
 
       // Create modern message with sections
-      const message = `─────────────────────────
-🔧 *Bienvenido a MKO Chk*
-─────────────────────────
+      const message = `──────────────────────
+🔧 *Bienvenido a CHK*
+──────────────────────
 
 📊 *Tu información:*
 👤 Usuario: \`${ctx.user.name || ctx.user.email}\`
-💳 Créditos: \`${ctx.user.credits || 0}\`
+💳 Créditos: \`${creditsDisplay}\`
 📅 Válido hasta: \`${validUntil}\`
-⚡ Plan: \`${planName}\`
+⚡ Plan: \`${planDisplay}\`
 
-─────────────────────────
+──────────────────────
 
 🔑 *Opciones disponibles:*
 ➡️ Gates – Pasarelas activas
 ➡️ Tools – Herramientas del bot
 ➡️ Dev – Contacto directo
 
-─────────────────────────
+──────────────────────
 
 📮 *Soporte:* @CougarMx`;
 

@@ -3,16 +3,35 @@
  */
 export const planCommand = async (ctx) => {
   const user = ctx.user;
-  
+
   if (!user) {
     return ctx.reply('⚠️ Tu cuenta no está vinculada. Usa /start para vincularla.');
   }
-  
+
+  // Check if user is admin or dev
+  const isAdminOrDev = user.role === 'admin' || user.role === 'dev';
+
+  // Special display for admin/dev
+  if (isAdminOrDev) {
+    const roleDisplay = user.role === 'dev' ? 'Dev' : 'Admin';
+    const roleEmoji = user.role === 'dev' ? '👨‍💻' : '👑';
+
+    const message = `${roleEmoji} *Plan ${roleDisplay}*\n\n` +
+      `💳 Créditos: Ilimitados\n` +
+      `🔥 Acceso completo a todas las funciones\n` +
+      `⭐ Sin restricciones\n` +
+      `♾️ Sin renovaciones necesarias\n\n` +
+      `💡 Como ${roleDisplay}, tienes acceso ilimitado al sistema.`;
+
+    return ctx.reply(message, { parse_mode: 'Markdown' });
+  }
+
+  // Regular user plan display
   const plan = user.plan || { type: 'free' };
   const planType = plan.type || 'free';
-  
+
   let message = `📋 *Tu Plan Actual*\n\n`;
-  
+
   switch (planType) {
     case 'free':
       message += `🆓 *Plan Free*\n`;
@@ -20,7 +39,7 @@ export const planCommand = async (ctx) => {
       message += `📅 Sin renovación automática\n\n`;
       message += `💡 Mejora tu plan para obtener más créditos mensuales.`;
       break;
-      
+
     case 'monthly':
       message += `⭐ *Plan Monthly Pro*\n`;
       message += `💳 ${plan.creditsPerMonth || 100} créditos/mes\n`;
@@ -31,7 +50,7 @@ export const planCommand = async (ctx) => {
         message += `⏰ Días restantes: ${daysLeft}\n`;
       }
       break;
-      
+
     case 'annual':
       message += `🌟 *Plan Annual Pro*\n`;
       message += `💳 ${plan.creditsPerMonth || 100} créditos/mes\n`;
@@ -43,7 +62,7 @@ export const planCommand = async (ctx) => {
       }
       message += `\n💰 Ahorro de 2 meses gratis al año`;
       break;
-      
+
     case 'lifetime':
       message += `♾️ *Plan Lifetime*\n`;
       message += `💳 10,000 créditos de por vida\n`;
@@ -51,12 +70,12 @@ export const planCommand = async (ctx) => {
       message += `⭐ Acceso ilimitado\n`;
       break;
   }
-  
+
   const startDate = plan.startDate?.toDate();
   if (startDate) {
     message += `\n📆 Inicio: ${startDate.toLocaleDateString()}`;
   }
-  
+
   await ctx.reply(message, { parse_mode: 'Markdown' });
 };
 
