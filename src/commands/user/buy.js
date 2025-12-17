@@ -1,4 +1,4 @@
-import { PLANS } from '../config/constants.js';
+import { PLANS } from '../../config/constants.js';
 
 /**
  * /buy command - Show available plans for purchase
