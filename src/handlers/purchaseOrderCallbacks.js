@@ -169,6 +169,124 @@ async function notifyAdmins(ctx, orderId, orderData) {
     }
 }
 
+/**
+ * Handle accept purchase order callback
+ */
+export const handleAcceptPurchaseOrder = async (ctx) => {
+    try {
+        await ctx.answerCbQuery();
+
+        const user = ctx.user;
+        if (!user || (user.role !== 'admin' && user.role !== 'dev')) {
+            return ctx.answerCbQuery('❌ Solo admins y devs pueden aceptar órdenes.', { show_alert: true });
+        }
+
+        // Extract order ID from callback data
+        const orderId = ctx.callbackQuery.data.replace('accept_purchase_', '');
+
+        // Get order from Firestore
+        const orderRef = db.collection('purchase_orders').doc(orderId);
+        const orderDoc = await orderRef.get();
+
+        if (!orderDoc.exists) {
+            return ctx.editMessageText('❌ Orden no encontrada.');
+        }
+
+        const orderData = orderDoc.data();
+
+        // Check if order is still pending
+        if (orderData.status !== 'pending') {
+            return ctx.editMessageText(`❌ Esta orden ya fue ${orderData.status === 'accepted' ? 'aceptada por ' + orderData.adminUsername : 'procesada'}.`);
+        }
+
+        // Check if order expired
+        const now = new Date();
+        if (orderData.timestamps.expiresAt.toDate() < now) {
+            await orderRef.update({ status: 'expired' });
+            return ctx.editMessageText('❌ Esta orden expiró (más de 24 horas sin pago).');
+        }
+
+        // Accept order - First come, first served
+        await orderRef.update({
+            adminId: ctx.from.id.toString(),
+            adminUsername: ctx.from.username || ctx.from.first_name,
+            status: 'accepted',
+            'timestamps.accepted': new Date()
+        });
+
+        // Update admin's message
+        const adminMessage = `✅ *Orden Aceptada*
+
+📋 *Detalles:*
+• ID: \`${orderId}\`
+• Cliente: @${orderData.clientUsername}
+• Plan: ${orderData.plan.name}
+• Precio: $${orderData.plan.price} ${orderData.plan.currency}
+
+👨‍💼 *Aceptada por:* @${ctx.from.username || ctx.from.first_name}
+📅 *Fecha:* ${new Date().toLocaleDateString('es-ES')}
+
+⏳ Esperando comprobante de pago del cliente...`;
+
+        await ctx.editMessageText(adminMessage, { parse_mode: 'Markdown' });
+
+        // Send bank details to client
+        await sendBankDetailsToClient(ctx, orderId, orderData);
+
+    } catch (error) {
+        console.error('Error accepting purchase order:', error);
+        await ctx.answerCbQuery('❌ Error al aceptar la orden. Intenta nuevamente.', { show_alert: true });
+    }
+};
+
+/**
+ * Send bank account details to client
+ */
+async function sendBankDetailsToClient(ctx, orderId, orderData) {
+    try {
+        // TODO: Get owner's bank account from Firestore
+        // For now, using placeholder data
+        const bankDetails = {
+            bank: 'BBVA',
+            account: '1234 5678 9012 3456',
+            clabe: '012345678901234567',
+            holder: 'Dueño CHK'
+        };
+
+        const clientMessage = `✅ *Orden Aceptada*
+
+Tu orden ha sido aceptada por un administrador.
+
+💳 *Datos de Pago:*
+──────────────────────
+🏦 Banco: ${bankDetails.bank}
+💳 Cuenta: ${bankDetails.account}
+🔢 CLABE: ${bankDetails.clabe}
+👤 Titular: ${bankDetails.holder}
+──────────────────────
+
+💰 *Total a pagar:* $${orderData.plan.price} ${orderData.plan.currency}
+
+📸 *Envía tu comprobante de pago con:*
+/capturapago
+
+⏰ *Importante:* Tienes 24 horas para enviar el comprobante.
+Si no envías el pago a tiempo, la orden será cancelada.
+
+🆔 ID de orden: \`${orderId}\``;
+
+        await ctx.telegram.sendMessage(
+            orderData.clientId,
+            clientMessage,
+            { parse_mode: 'Markdown' }
+        );
+
+    } catch (error) {
+        console.error('Error sending bank details to client:', error);
+    }
+}
+
 export default {
-    handleBuyPlan
+    handleBuyPlan,
+    handleAcceptPurchaseOrder
 };

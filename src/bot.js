@@ -19,7 +19,7 @@ import { handleApproveCallback, handleRejectCallback } from './handlers/orderCal
 import { handleConfirmRegistration, handleCancelRegistration } from './handlers/registrationCallbacks.js';
 import { handleConfirmReset, handleCancelReset } from './handlers/passwordResetCallbacks.js';
 import { handleGatesMenu, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
-import { handleBuyPlan } from './handlers/purchaseOrderCallbacks.js';
+import { handleBuyPlan, handleAcceptPurchaseOrder } from './handlers/purchaseOrderCallbacks.js';
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -127,6 +127,7 @@ bot.action('back_to_start', requireAuth, handleBackToStart);
 
 // Purchase order callbacks
 bot.action(/^buy_/, requireAuth, handleBuyPlan);
+bot.action(/^accept_purchase_/, requireAuth, handleAcceptPurchaseOrder);
 
 // ========== BOT LAUNCH ==========
 
