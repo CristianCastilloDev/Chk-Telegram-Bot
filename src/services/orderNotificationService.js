@@ -30,7 +30,7 @@ class OrderNotificationService {
         }
 
         console.log('📦 Orders snapshot received! Changes:', snapshot.docChanges().length);
-        
+
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === 'added') {
             const orderData = change.doc.data();
@@ -55,25 +55,25 @@ class OrderNotificationService {
   }
 
   /**
-   * Send notification to all devs with inline buttons
+   * Send notification to all admins and devs with inline buttons
    */
   async notifyDevs(orderData, orderId) {
     try {
-      console.log('📦 Sending notification to devs for order:', orderId);
+      console.log('📦 Sending notification to admins and devs for order:', orderId);
 
-      // Get all dev users
+      // Get all admin and dev users
       const usersSnapshot = await db.collection('users')
-        .where('role', '==', 'dev')
+        .where('role', 'in', ['admin', 'dev'])
         .get();
 
       if (usersSnapshot.empty) {
-        console.log('📦 No dev users found');
+        console.log('📦 No admin or dev users found');
         return;
       }
 
-      console.log('📦 Found', usersSnapshot.size, 'dev users');
+      console.log('📦 Found', usersSnapshot.size, 'admin/dev users');
 
-      // Send notification to each dev
+      // Send notification to each admin/dev
       for (const userDoc of usersSnapshot.docs) {
         const userData = userDoc.data();
         const userId = userDoc.id;
@@ -85,7 +85,7 @@ class OrderNotificationService {
           .get();
 
         if (telegramSnapshot.empty) {
-          console.log('📦 Dev user has no Telegram link:', userData.email);
+          console.log('📦 User has no Telegram link:', userData.email);
           continue;
         }
 
@@ -93,27 +93,31 @@ class OrderNotificationService {
         const chatId = telegramData.chatId;
 
         if (!chatId) {
-          console.log('📦 Dev user has no chatId:', userData.email);
+          console.log('📦 User has no chatId:', userData.email);
           continue;
         }
 
         // Send notification with inline buttons
-        await this.sendOrderNotification(chatId, orderData, orderId);
+        await this.sendOrderNotification(chatId, orderData, orderId, userData.role);
       }
 
     } catch (error) {
-      console.error('📦 Error sending notifications to devs:', error);
+      console.error('📦 Error sending notifications to admins/devs:', error);
     }
   }
 
   /**
    * Send order notification with inline buttons
    */
-  async sendOrderNotification(chatId, orderData, orderId) {
+  async sendOrderNotification(chatId, orderData, orderId, userRole) {
     try {
       const emoji = orderData.type === 'credits' ? '💳' : '📅';
       const typeText = orderData.type === 'credits' ? 'Créditos' : 'Plan';
-      
+
+      // Calculate commission based on role
+      const commissionPercent = userRole === 'admin' ? 20 : 10;
+      const commissionAmount = (orderData.price * commissionPercent / 100).toFixed(2);
+
       const message = `
 🔔 *Nueva Orden Pendiente*
 
@@ -124,6 +128,8 @@ ${emoji} *Tipo:* ${typeText}
 👨‍💼 *Creado por:* ${orderData.createdBy}
 📝 *Descripción:* ${orderData.description}
 
+💰 *Tu comisión:* $${commissionAmount} (${commissionPercent}%)
+
 🆔 \`${orderId}\`
       `.trim();
 
@@ -131,8 +137,8 @@ ${emoji} *Tipo:* ${typeText}
       const keyboard = {
         inline_keyboard: [
           [
-            { text: '✅ Aprobar', callback_data: `approve_${orderId}` },
-            { text: '❌ Rechazar', callback_data: `reject_${orderId}` }
+            { text: '✅ Aceptar Orden', callback_data: `accept_order_${orderId}` },
+            { text: '❌ Rechazar', callback_data: `reject_order_${orderId}` }
           ]
         ]
       };
@@ -142,7 +148,7 @@ ${emoji} *Tipo:* ${typeText}
         reply_markup: keyboard
       });
 
-      console.log('📦 ✅ Notification sent to chatId:', chatId);
+      console.log('📦 ✅ Notification sent to chatId:', chatId, 'Role:', userRole);
 
     } catch (error) {
       console.error('📦 Error sending notification to chatId:', chatId, error);

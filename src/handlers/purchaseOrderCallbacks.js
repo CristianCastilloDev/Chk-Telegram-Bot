@@ -1,5 +1,6 @@
 import { db } from '../config/firebase.js';
 import { PLANS } from '../config/constants.js';
+import { escapeUsername } from '../utils/markdown.js';
 
 /**
  * Handle buy plan callbacks - New order system
@@ -119,53 +120,89 @@ Puedes ver el estado de tu orden con /misordenes`;
 };
 
 /**
- * Notify all admins about new order
+ * Notify all admins and devs about new order
  */
 async function notifyAdmins(ctx, orderId, orderData) {
     try {
-        // Get all admin users
-        const adminsSnapshot = await db.collection('users')
-            .where('role', '==', 'admin')
+        console.log('📦 Sending notifications to admins and devs for order:', orderId);
+
+        // Get all admin and dev users
+        const usersSnapshot = await db.collection('users')
+            .where('role', 'in', ['admin', 'dev'])
             .get();
 
-        const adminMessage = `🔔 *Nueva Orden de Compra*
+        if (usersSnapshot.empty) {
+            console.log('📦 No admin or dev users found');
+            return;
+        }
 
-👤 *Cliente:* @${orderData.clientUsername}
+        console.log('📦 Found', usersSnapshot.size, 'admin/dev users');
+
+        // Send notification to each admin/dev
+        for (const userDoc of usersSnapshot.docs) {
+            const userData = userDoc.data();
+            const userId = userDoc.id;
+            const userRole = userData.role;
+
+            // Get telegram link for this user
+            const telegramSnapshot = await db.collection('telegram_users')
+                .where('firebaseUid', '==', userId)
+                .limit(1)
+                .get();
+
+            if (telegramSnapshot.empty) {
+                console.log('📦 User has no Telegram link:', userData.email);
+                continue;
+            }
+
+            const telegramData = telegramSnapshot.docs[0].data();
+            const chatId = telegramData.chatId;
+
+            if (!chatId) {
+                console.log('📦 User has no chatId:', userData.email);
+                continue;
+            }
+
+            // Calculate commission based on role
+            const commissionPercent = userRole === 'admin' ? 20 : 10;
+            const commissionAmount = (orderData.plan.price * commissionPercent / 100).toFixed(2);
+
+            const adminMessage = `🔔 *Nueva Orden de Compra*
+
+👤 *Cliente:* @${escapeUsername(orderData.clientUsername)}
 🆔 *ID Cliente:* \`${orderData.clientId}\`
 📋 *Plan:* ${orderData.plan.name}
 💰 *Precio:* $${orderData.plan.price} ${orderData.plan.currency}
 📅 *Fecha:* ${new Date().toLocaleDateString('es-ES')}
 
+💵 *Tu comisión:* $${commissionAmount} (${commissionPercent}%)
+
 ──────────────────────`;
 
-        const keyboard = {
-            inline_keyboard: [
-                [
-                    { text: '✅ Aceptar Orden', callback_data: `accept_purchase_${orderId}` }
+            const keyboard = {
+                inline_keyboard: [
+                    [
+                        { text: '✅ Aceptar Orden', callback_data: `accept_purchase_${orderId}` }
+                    ]
                 ]
-            ]
-        };
+            };
 
-        // Send notification to each admin
-        for (const adminDoc of adminsSnapshot.docs) {
-            const admin = adminDoc.data();
-            if (admin.telegramId) {
-                try {
-                    await ctx.telegram.sendMessage(
-                        admin.telegramId,
-                        adminMessage,
-                        {
-                            parse_mode: 'Markdown',
-                            reply_markup: keyboard
-                        }
-                    );
-                } catch (error) {
-                    console.error(`Error notifying admin ${admin.telegramId}:`, error);
-                }
+            try {
+                await ctx.telegram.sendMessage(
+                    chatId,
+                    adminMessage,
+                    {
+                        parse_mode: 'Markdown',
+                        reply_markup: keyboard
+                    }
+                );
+                console.log(`📦 ✅ Notification sent to ${userData.email} (${userRole})`);
+            } catch (error) {
+                console.error(`📦 Error notifying ${userData.email}:`, error);
             }
         }
     } catch (error) {
-        console.error('Error notifying admins:', error);
+        console.error('📦 Error notifying admins and devs:', error);
     }
 }
 
@@ -219,7 +256,7 @@ export const handleAcceptPurchaseOrder = async (ctx) => {
 
 📋 *Detalles:*
 • ID: \`${orderId}\`
-• Cliente: @${orderData.clientUsername}
+• Cliente: @${escapeUsername(orderData.clientUsername)}
 • Plan: ${orderData.plan.name}
 • Precio: $${orderData.plan.price} ${orderData.plan.currency}
 
@@ -244,14 +281,16 @@ export const handleAcceptPurchaseOrder = async (ctx) => {
  */
 async function sendBankDetailsToClient(ctx, orderId, orderData) {
     try {
-        // TODO: Get owner's bank account from Firestore
-        // For now, using placeholder data
-        const bankDetails = {
-            bank: 'BBVA',
-            account: '1234 5678 9012 3456',
-            clabe: '012345678901234567',
-            holder: 'Dueño CHK'
-        };
+        // Import getBankDetails dynamically to avoid circular dependency
+        const { getBankDetails } = await import('../commands/admin/banca.js');
+
+        // Get owner's bank account from Firestore
+        const bankDetails = await getBankDetails();
+
+        if (!bankDetails) {
+            console.error('No bank details configured');
+            return;
+        }
 
         const clientMessage = `✅ *Orden Aceptada*
 
@@ -286,7 +325,323 @@ Si no envías el pago a tiempo, la orden será cancelada.
     }
 }
 
+/**
+ * Handle approve payment callback
+ */
+export const handleApprovePayment = async (ctx) => {
+    try {
+        await ctx.answerCbQuery();
+
+        const user = ctx.user;
+        if (!user || (user.role !== 'admin' && user.role !== 'dev')) {
+            return ctx.answerCbQuery('❌ Solo admins y devs pueden aprobar pagos.', { show_alert: true });
+        }
+
+        const orderId = ctx.callbackQuery.data.replace('approve_payment_', '');
+
+        const orderRef = db.collection('purchase_orders').doc(orderId);
+        const orderDoc = await orderRef.get();
+
+        if (!orderDoc.exists) {
+            return ctx.editMessageCaption('❌ Orden no encontrada.', { parse_mode: 'Markdown' });
+        }
+
+        const orderData = orderDoc.data();
+
+        if (orderData.status !== 'payment_sent') {
+            return ctx.editMessageCaption('❌ Esta orden ya fue procesada.', { parse_mode: 'Markdown' });
+        }
+
+        // Apply plan to user
+        await applyPlanToUser(orderData);
+
+        // Calculate commissions
+        const commissions = calculateCommissions(orderData);
+
+        // Update order status
+        await orderRef.update({
+            status: 'approved',
+            'timestamps.approved': new Date(),
+            commissions: commissions,
+            approvedBy: ctx.from.id.toString()
+        });
+
+        // Update earnings for seller
+        await updateEarnings(orderData, commissions);
+
+        // Update admin's message
+        const updatedCaption = `✅ *Pago Aprobado*\n\n` +
+            `📋 Orden: \`${orderId}\`\n` +
+            `👤 Cliente: @${escapeUsername(orderData.clientUsername)}\n` +
+            `💰 Plan: ${orderData.plan.name}\n` +
+            `💵 Monto: $${orderData.plan.price} ${orderData.plan.currency}\n\n` +
+            `✅ Plan aplicado al cliente\n` +
+            `📅 Aprobado: ${new Date().toLocaleDateString('es-ES')}`;
+
+        await ctx.editMessageCaption(updatedCaption, { parse_mode: 'Markdown' });
+
+        // Notify client
+        await ctx.telegram.sendMessage(
+            orderData.clientId,
+            `🎉 *¡Pago Aprobado!*\n\n` +
+            `Tu pago ha sido verificado y aprobado.\n` +
+            `Tu plan ${orderData.plan.name} ha sido activado.\n\n` +
+            `📋 Orden: \`${orderId}\`\n\n` +
+            `¡Gracias por tu compra! 🚀`,
+            { parse_mode: 'Markdown' }
+        );
+
+    } catch (error) {
+        console.error('Error approving payment:', error);
+        await ctx.answerCbQuery('❌ Error al aprobar el pago.', { show_alert: true });
+    }
+};
+
+/**
+ * Handle reject payment callback
+ */
+export const handleRejectPayment = async (ctx) => {
+    try {
+        await ctx.answerCbQuery();
+
+        const user = ctx.user;
+        if (!user || (user.role !== 'admin' && user.role !== 'dev')) {
+            return ctx.answerCbQuery('❌ Solo admins y devs pueden rechazar pagos.', { show_alert: true });
+        }
+
+        const orderId = ctx.callbackQuery.data.replace('reject_payment_', '');
+
+        const orderRef = db.collection('purchase_orders').doc(orderId);
+        const orderDoc = await orderRef.get();
+
+        if (!orderDoc.exists) {
+            return ctx.editMessageCaption('❌ Orden no encontrada.', { parse_mode: 'Markdown' });
+        }
+
+        const orderData = orderDoc.data();
+
+        if (orderData.status !== 'payment_sent') {
+            return ctx.editMessageCaption('❌ Esta orden ya fue procesada.', { parse_mode: 'Markdown' });
+        }
+
+        // Update order status
+        await orderRef.update({
+            status: 'rejected',
+            'timestamps.rejected': new Date(),
+            rejectedBy: ctx.from.id.toString(),
+            rejectionReason: 'Comprobante de pago no válido'
+        });
+
+        // Update admin's message
+        const updatedCaption = `❌ *Pago Rechazado*\n\n` +
+            `📋 Orden: \`${orderId}\`\n` +
+            `👤 Cliente: @${escapeUsername(orderData.clientUsername)}\n` +
+            `💰 Plan: ${orderData.plan.name}\n` +
+            `💵 Monto: $${orderData.plan.price} ${orderData.plan.currency}\n\n` +
+            `❌ Comprobante rechazado\n` +
+            `📅 Rechazado: ${new Date().toLocaleDateString('es-ES')}`;
+
+        await ctx.editMessageCaption(updatedCaption, { parse_mode: 'Markdown' });
+
+        // Notify client
+        await ctx.telegram.sendMessage(
+            orderData.clientId,
+            `❌ *Pago Rechazado*\n\n` +
+            `Tu comprobante de pago no pudo ser verificado.\n\n` +
+            `📋 Orden: \`${orderId}\`\n` +
+            `📝 Razón: Comprobante no válido\n\n` +
+            `Por favor, verifica que el comprobante sea correcto y vuelve a intentarlo.`,
+            { parse_mode: 'Markdown' }
+        );
+
+    } catch (error) {
+        console.error('Error rejecting payment:', error);
+        await ctx.answerCbQuery('❌ Error al rechazar el pago.', { show_alert: true });
+    }
+};
+
+/**
+ * Apply plan to user based on plan type
+ */
+async function applyPlanToUser(orderData) {
+    console.log('🔍 Looking for user with clientId:', orderData.clientId, 'Type:', typeof orderData.clientId);
+
+    // First, find the Firebase UID using telegram_users collection
+    // Try both chatId and telegramId fields
+    const clientIdStr = orderData.clientId.toString();
+
+    let telegramUserSnapshot = await db.collection('telegram_users')
+        .where('chatId', '==', clientIdStr)
+        .limit(1)
+        .get();
+
+    // If not found by chatId, try telegramId field
+    if (telegramUserSnapshot.empty) {
+        console.log('⚠️ Not found by chatId, trying telegramId field...');
+        telegramUserSnapshot = await db.collection('telegram_users')
+            .where('telegramId', '==', clientIdStr)
+            .limit(1)
+            .get();
+    }
+
+    if (telegramUserSnapshot.empty) {
+        console.log('❌ No telegram_users entry found for:', clientIdStr);
+        throw new Error('User not found in telegram_users');
+    }
+
+    const telegramUserData = telegramUserSnapshot.docs[0].data();
+    const firebaseUid = telegramUserData.firebaseUid;
+
+    console.log('✅ Found Firebase UID:', firebaseUid);
+
+    // Now get the user document
+    const userDoc = await db.collection('users').doc(firebaseUid).get();
+
+    if (!userDoc.exists) {
+        console.log('❌ No user found with UID:', firebaseUid);
+        throw new Error('User not found');
+    }
+
+    const userId = userDoc.id;
+    const userData = userDoc.data();
+
+    console.log('✅ User found:', userId, userData.email);
+
+    if (orderData.plan.type === 'days') {
+        // Apply day-based plan
+        const now = new Date();
+        const currentExpiry = userData.planExpiresAt?.toDate() || now;
+        const startDate = currentExpiry > now ? currentExpiry : now;
+        const expiryDate = new Date(startDate.getTime() + orderData.plan.duration * 24 * 60 * 60 * 1000);
+
+        await db.collection('users').doc(userId).update({
+            plan: orderData.plan.id,
+            planExpiresAt: expiryDate,
+            updatedAt: new Date()
+        });
+
+    } else if (orderData.plan.type === 'credits') {
+        // Apply credit-based plan
+        const currentCredits = userData.credits || 0;
+
+        await db.collection('users').doc(userId).update({
+            credits: currentCredits + orderData.plan.credits,
+            updatedAt: new Date()
+        });
+    }
+}
+
+/**
+ * Calculate commissions based on fixed percentages
+ * - 60% Owner (fixed)
+ * - 20% Devs total (10% each for 2 devs, fixed)
+ * - 20% Seller (whoever accepted the order)
+ */
+function calculateCommissions(orderData) {
+    const totalAmount = orderData.plan.price;
+
+    return {
+        owner: totalAmount * 0.60,      // 60% fixed for owner
+        devs: totalAmount * 0.20,       // 20% fixed for devs (to be split)
+        seller: totalAmount * 0.20,     // 20% for seller
+        sellerId: orderData.adminId
+    };
+}
+
+/**
+ * Update earnings for all parties (owner, devs, seller)
+ */
+async function updateEarnings(orderData, commissions) {
+    try {
+        const sellerId = orderData.adminId;
+        const totalAmount = orderData.plan.price;
+
+        // Get current month key (YYYY-MM)
+        const now = new Date();
+        const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Import commission config
+        const { COMMISSION_CONFIG, getDevCommission } = await import('../config/commissions.js');
+
+        // 1. Update seller earnings (20%)
+        await updateUserEarnings(sellerId, commissions.seller, totalAmount, monthKey, true);
+        console.log(`✅ Seller ${sellerId}: +$${commissions.seller.toFixed(2)}`);
+
+        // 2. Update owner earnings (60%) - if owner is set
+        if (COMMISSION_CONFIG.OWNER_CHAT_ID) {
+            await updateUserEarnings(COMMISSION_CONFIG.OWNER_CHAT_ID, commissions.owner, totalAmount, monthKey, false);
+            console.log(`✅ Owner ${COMMISSION_CONFIG.OWNER_CHAT_ID}: +$${commissions.owner.toFixed(2)}`);
+        }
+
+        // 3. Update each dev earnings (10% each)
+        const devCommission = getDevCommission(totalAmount);
+        for (const devChatId of COMMISSION_CONFIG.DEV_CHAT_IDS) {
+            await updateUserEarnings(devChatId, devCommission, totalAmount, monthKey, false);
+            console.log(`✅ Dev ${devChatId}: +$${devCommission.toFixed(2)}`);
+        }
+
+    } catch (error) {
+        console.error('Error updating earnings:', error);
+    }
+}
+
+/**
+ * Helper function to update earnings for a specific user
+ */
+async function updateUserEarnings(userId, commission, totalAmount, monthKey, countAsSale) {
+    const earningsRef = db.collection('earnings').doc(userId);
+    const earningsDoc = await earningsRef.get();
+
+    if (earningsDoc.exists) {
+        // Update existing earnings
+        const earnings = earningsDoc.data();
+        const currentMonthly = earnings.monthly || {};
+        const currentMonth = currentMonthly[monthKey] || { sales: 0, amount: 0, commission: 0 };
+
+        const updateData = {
+            'totals.totalCommissions': (earnings.totals?.totalCommissions || 0) + commission,
+            'totals.pendingCommissions': (earnings.totals?.pendingCommissions || 0) + commission,
+            [`monthly.${monthKey}.commission`]: currentMonth.commission + commission,
+            lastUpdated: new Date()
+        };
+
+        // Only count as sale for the seller
+        if (countAsSale) {
+            updateData['totals.totalSales'] = (earnings.totals?.totalSales || 0) + 1;
+            updateData['totals.totalAmount'] = (earnings.totals?.totalAmount || 0) + totalAmount;
+            updateData[`monthly.${monthKey}.sales`] = currentMonth.sales + 1;
+            updateData[`monthly.${monthKey}.amount`] = currentMonth.amount + totalAmount;
+        }
+
+        await earningsRef.update(updateData);
+    } else {
+        // Create new earnings document
+        const newEarnings = {
+            userId: userId,
+            totals: {
+                totalSales: countAsSale ? 1 : 0,
+                totalAmount: countAsSale ? totalAmount : 0,
+                totalCommissions: commission,
+                paidCommissions: 0,
+                pendingCommissions: commission
+            },
+            monthly: {
+                [monthKey]: {
+                    sales: countAsSale ? 1 : 0,
+                    amount: countAsSale ? totalAmount : 0,
+                    commission: commission
+                }
+            },
+            lastUpdated: new Date()
+        };
+
+        await earningsRef.set(newEarnings);
+    }
+}
+
 export default {
     handleBuyPlan,
-    handleAcceptPurchaseOrder
+    handleAcceptPurchaseOrder,
+    handleApprovePayment,
+    handleRejectPayment
 };

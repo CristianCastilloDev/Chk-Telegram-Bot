@@ -30,7 +30,7 @@ class RegistrationService {
         }
 
         console.log('📝 Registrations snapshot received! Changes:', snapshot.docChanges().length);
-        
+
         snapshot.docChanges().forEach(async (change) => {
           if (change.type === 'added') {
             const regData = change.doc.data();
@@ -39,7 +39,8 @@ class RegistrationService {
             console.log('📝 New registration request:', {
               regId: regId,
               username: regData.username,
-              telegramId: regData.telegramId
+              telegramId: regData.telegramId,
+              messageSent: regData.messageSent || false
             });
 
             // Send confirmation to user
@@ -59,6 +60,18 @@ class RegistrationService {
   async sendConfirmation(regData, regId) {
     try {
       console.log('📝 Sending confirmation to Telegram ID:', regData.telegramId);
+
+      // Check if message was already sent (prevent duplicates from multiple bot instances)
+      if (regData.messageSent) {
+        console.log('📝 ⚠️ Message already sent for this registration, skipping');
+        return;
+      }
+
+      // Mark as message sent IMMEDIATELY to prevent race conditions
+      await db.collection('pending_registrations').doc(regId).update({
+        messageSent: true,
+        messageSentAt: new Date()
+      });
 
       const message = `
 🆕 *Nueva Solicitud de Registro*
@@ -89,7 +102,7 @@ class RegistrationService {
 
     } catch (error) {
       console.error('📝 Error sending confirmation:', error);
-      
+
       // Mark registration as failed if can't send message
       await db.collection('pending_registrations').doc(regId).update({
         status: 'failed',

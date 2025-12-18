@@ -13,13 +13,16 @@ import OrderNotificationService from './services/orderNotificationService.js';
 import RegistrationService from './services/registrationService.js';
 import PasswordResetService from './services/passwordResetService.js';
 import PasswordUpdateService from './services/passwordUpdateService.js';
+import OrderConfirmationService from './services/orderConfirmationService.js';
 
 // Import handlers
 import { handleApproveCallback, handleRejectCallback } from './handlers/orderCallbacks.js';
 import { handleConfirmRegistration, handleCancelRegistration } from './handlers/registrationCallbacks.js';
 import { handleConfirmReset, handleCancelReset } from './handlers/passwordResetCallbacks.js';
 import { handleGatesMenu, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
-import { handleBuyPlan, handleAcceptPurchaseOrder } from './handlers/purchaseOrderCallbacks.js';
+import { handleBuyPlan, handleAcceptPurchaseOrder, handleApprovePayment, handleRejectPayment } from './handlers/purchaseOrderCallbacks.js';
+import { handlePaymentProofPhoto } from './handlers/paymentProofHandler.js';
+import { handleConfirmReceived, handleConfirmNotReceived } from './handlers/confirmationCallbacks.js';
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -30,11 +33,15 @@ import checkCommand from './commands/user/check.js';
 import mylivesCommand from './commands/user/mylives.js';
 import binCommand from './commands/user/bin.js';
 import buyCommand from './commands/user/buy.js';
+import capturaPagoCommand from './commands/user/capturapago.js';
+import misordenesCommand from './commands/user/misordenes.js';
 
 // Import admin commands
 import usersCommand from './commands/admin/users.js';
 import addCreditsCommand from './commands/admin/addCredits.js';
 import setPlanCommand from './commands/admin/setplan.js';
+import gananciasCommand from './commands/admin/ganancias.js';
+import { bancaCommand, setBancaCommand } from './commands/admin/banca.js';
 import ordersCommand from './commands/admin/orders.js';
 import approveCommand from './commands/admin/approve.js';
 import rejectCommand from './commands/admin/reject.js';
@@ -65,6 +72,7 @@ const orderNotificationService = new OrderNotificationService(bot);
 const registrationService = new RegistrationService(bot);
 const passwordResetService = new PasswordResetService(bot);
 const passwordUpdateService = new PasswordUpdateService();
+const orderConfirmationService = new OrderConfirmationService(bot);
 
 // ========== MIDDLEWARE ==========
 
@@ -92,6 +100,8 @@ bot.command('plan', requireAuth, planCommand);
 bot.command('mylives', requireAuth, mylivesCommand);
 bot.command('bin', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.BIN), binCommand);
 bot.command('buy', requireAuth, buyCommand);
+bot.command('capturapago', requireAuth, capturaPagoCommand);
+bot.command('misordenes', requireAuth, misordenesCommand);
 
 // Gate commands (auth required + cooldown)
 bot.command('check', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.CHECK), checkCommand);
@@ -100,6 +110,9 @@ bot.command('check', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.CHECK)
 bot.command('users', requireAuth, requireAdmin, usersCommand);
 bot.command('addcredits', requireAuth, requireAdmin, addCreditsCommand);
 bot.command('setplan', requireAuth, requireAdmin, setPlanCommand);
+bot.command('ganancias', requireAuth, gananciasCommand); // Available for admin and dev
+bot.command('banca', requireAuth, bancaCommand); // Owner only (TODO: add owner check)
+bot.command('setbanca', requireAuth, setBancaCommand); // Owner only (TODO: add owner check)
 bot.command('stats', requireAuth, requireAdmin, statsCommand);
 
 // Order management commands (dev only)
@@ -107,8 +120,8 @@ bot.command('orders', requireAuth, requireAdmin, ordersCommand);
 bot.command('approve', requireAuth, requireAdmin, approveCommand);
 bot.command('reject', requireAuth, requireAdmin, rejectCommand);
 
-// Callback query handlers for inline buttons
-bot.action(/^approve_/, requireAuth, requireAdmin, handleApproveCallback);
+// Callback query handlers for inline buttons (legacy analytics_orders)
+bot.action(/^approve_order_/, requireAuth, requireAdmin, handleApproveCallback);
 bot.action(/^reject_/, requireAuth, requireAdmin, handleRejectCallback);
 
 // Registration callback handlers (no auth required for new users)
@@ -128,6 +141,15 @@ bot.action('back_to_start', requireAuth, handleBackToStart);
 // Purchase order callbacks
 bot.action(/^buy_/, requireAuth, handleBuyPlan);
 bot.action(/^accept_purchase_/, requireAuth, handleAcceptPurchaseOrder);
+bot.action(/^approve_payment_/, requireAuth, handleApprovePayment);
+bot.action(/^reject_payment_/, requireAuth, handleRejectPayment);
+
+// Photo handler for payment proofs
+bot.on('photo', requireAuth, handlePaymentProofPhoto);
+
+// Confirmation callbacks
+bot.action(/^confirm_received_/, requireAuth, handleConfirmReceived);
+bot.action(/^confirm_not_received_/, requireAuth, handleConfirmNotReceived);
 
 // ========== BOT LAUNCH ==========
 
@@ -142,6 +164,7 @@ const shutdown = async (signal) => {
     registrationService.stop();
     passwordResetService.stop();
     passwordUpdateService.stop();
+    orderConfirmationService.stop();
 
     await bot.stop(signal);
     logger.info('Bot stopped successfully');
@@ -194,6 +217,14 @@ try {
   console.log('✅ Password Update Service started successfully');
 } catch (error) {
   console.error('❌ ERROR starting Password Update Service:', error);
+}
+
+console.log('✅ Starting Order Confirmation Service...');
+try {
+  orderConfirmationService.start();
+  console.log('✅ Order Confirmation Service started successfully');
+} catch (error) {
+  console.error('❌ ERROR starting Order Confirmation Service:', error);
 }
 
 // Launch bot
