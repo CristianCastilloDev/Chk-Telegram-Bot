@@ -9,7 +9,7 @@
 
 export const COMMISSION_CONFIG = {
     // Owner chatId (receives 60% of all sales)
-    OWNER_CHAT_ID: null, // TODO: Set owner chatId when known
+    OWNER_CHAT_ID: '1892449971',  // Owner (not yet registered)
 
     // Dev chatIds (each receives 10% of all sales)
     DEV_CHAT_IDS: [

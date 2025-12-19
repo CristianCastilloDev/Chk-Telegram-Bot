@@ -98,17 +98,40 @@ class RegistrationService {
         reply_markup: keyboard
       });
 
+      // Mark as message sent
+      await db.collection('pending_registrations').doc(regId).update({
+        messageSent: true,
+        messageSentAt: new Date()
+      });
+
       console.log('📝 ✅ Confirmation sent to Telegram ID:', regData.telegramId);
 
     } catch (error) {
       console.error('📝 Error sending confirmation:', error);
 
-      // Mark registration as failed if can't send message
+      // Determine specific error type
+      let errorMessage = 'Could not send Telegram message';
+      let errorDetails = error.message || '';
+
+      // Check if user hasn't started conversation with bot
+      if (error.response?.error_code === 403 ||
+        errorDetails.includes('bot was blocked') ||
+        errorDetails.includes('user is deactivated') ||
+        errorDetails.includes('bot can\'t initiate conversation')) {
+        errorMessage = 'User has not started conversation with bot. Please send /start to the bot first.';
+      } else if (error.response?.error_code === 400) {
+        errorMessage = 'Invalid Telegram ID. Please verify your Telegram ID is correct.';
+      }
+
+      // Mark registration as failed with detailed error
       await db.collection('pending_registrations').doc(regId).update({
         status: 'failed',
-        error: 'Could not send Telegram message',
+        error: errorMessage,
+        errorDetails: errorDetails,
         failedAt: new Date()
       });
+
+      console.error(`📝 ❌ Registration failed for ${regData.telegramId}: ${errorMessage}`);
     }
   }
 

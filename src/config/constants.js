@@ -116,6 +116,7 @@ export const PLANS = {
  * User Roles
  */
 export const ROLES = {
+  OWNER: 'owner',   // Unique role for the investor/owner
   ADMIN: 'admin',
   DEV: 'dev',
   CLIENT: 'client',
@@ -158,7 +159,7 @@ export const MESSAGES = {
 Para empezar, necesitas vincular tu cuenta de Telegram con tu cuenta de Chk Web.
 
 *¿Cómo vincular tu cuenta?*
-1. Inicia sesión en https://proyecto-v1-0.vercel.app/
+1. Inicia sesión en https://chk-website-bot.vercel.app/dashboard/
 2. Ve a Configuración → Telegram
 3. Ingresa tu Telegram ID: \`{telegramId}\`
 4. Haz clic en "Vincular"
