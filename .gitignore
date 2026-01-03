@@ -40,3 +40,31 @@ update-*.js
 # Temporary files
 *.tmp
 *.temp
+
+# SMS Services (temporary - not ready for production)
+src/commands/user/sms.js
+src/commands/user/smsactive.js
+src/commands/user/smshistory.js
+src/handlers/smsCallbacks.js
+src/services/smsCheckerService.js
+src/services/smspool.js
+src/services/smspoolMock.js
+src/database/models/SMSRental.js
+
+# Scripts (development only)
+scripts/addKLoveGate.js
+scripts/checkUserCredits.js
+scripts/create-test-user.js
+scripts/fixKLoveGateOrder.js
+scripts/kloveBatchChecker.js
+scripts/kloveBrowserChecker.js
+scripts/kloveChecker.js
+scripts/kloveSeleniumChecker.js
+scripts/makeKLoveGatePublic.js
+scripts/seedSMSPlatforms.js
+scripts/updateKLoveGateAccess.js
+scripts/updateKLoveGateStructure.js
+scripts/verifyKLoveGate.js
+
+# Database models (development)
+src/database/
