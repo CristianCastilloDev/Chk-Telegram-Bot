@@ -14,6 +14,7 @@ import RegistrationService from './services/registrationService.js';
 import PasswordResetService from './services/passwordResetService.js';
 import PasswordUpdateService from './services/passwordUpdateService.js';
 import OrderConfirmationService from './services/orderConfirmationService.js';
+import DynamicGateCommandService from './services/dynamicGateCommandService.js';
 // import SMSCheckerService from './services/smsCheckerService.js'; // TODO: Uncomment when SMS feature is ready
 
 // Import handlers
@@ -79,6 +80,7 @@ const registrationService = new RegistrationService(bot);
 const passwordResetService = new PasswordResetService(bot);
 const passwordUpdateService = new PasswordUpdateService();
 const orderConfirmationService = new OrderConfirmationService(bot);
+const dynamicGateCommandService = new DynamicGateCommandService(bot);
 // const smsCheckerService = new SMSCheckerService(bot); // TODO: Uncomment when SMS feature is ready
 
 // ========== MIDDLEWARE ==========
@@ -258,6 +260,15 @@ try {
 // } catch (error) {
 //   console.error('❌ ERROR starting SMS Checker Service:', error);
 // }
+
+// Register dynamic gate commands
+console.log('🎯 Registering dynamic gate commands...');
+try {
+  await dynamicGateCommandService.registerGateCommands(requireAuth, cooldownMiddleware, BOT_CONFIG);
+  console.log('✅ Dynamic gate commands registered successfully');
+} catch (error) {
+  console.error('❌ ERROR registering dynamic gate commands:', error);
+}
 
 // Launch bot
 console.log('🚀 Launching bot...');
