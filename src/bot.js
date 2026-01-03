@@ -14,15 +14,17 @@ import RegistrationService from './services/registrationService.js';
 import PasswordResetService from './services/passwordResetService.js';
 import PasswordUpdateService from './services/passwordUpdateService.js';
 import OrderConfirmationService from './services/orderConfirmationService.js';
+import SMSCheckerService from './services/smsCheckerService.js';
 
 // Import handlers
 import { handleApproveCallback, handleRejectCallback } from './handlers/orderCallbacks.js';
 import { handleConfirmRegistration, handleCancelRegistration } from './handlers/registrationCallbacks.js';
 import { handleConfirmReset, handleCancelReset } from './handlers/passwordResetCallbacks.js';
-import { handleGatesMenu, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
+import { handleGatesMenu, handleGatewayMenu, handleGateDetails, handleToolsMenu, handleDevMenu, handleBackToStart } from './handlers/menuCallbacks.js';
 import { handleBuyPlan, handleAcceptPurchaseOrder, handleApprovePayment, handleRejectPayment } from './handlers/purchaseOrderCallbacks.js';
 import { handlePaymentProofPhoto } from './handlers/paymentProofHandler.js';
 import { handleConfirmReceived, handleConfirmNotReceived } from './handlers/confirmationCallbacks.js';
+import { handleSMSPlatformSelection, handleSMSConfirmPurchase, handleSMSCancel } from './handlers/smsCallbacks.js';
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -35,6 +37,9 @@ import binCommand from './commands/user/bin.js';
 import buyCommand from './commands/user/buy.js';
 import capturaPagoCommand from './commands/user/capturapago.js';
 import misordenesCommand from './commands/user/misordenes.js';
+import smsCommand from './commands/user/sms.js';
+import smsActiveCommand from './commands/user/smsactive.js';
+import smsHistoryCommand from './commands/user/smshistory.js';
 
 // Import admin commands
 import usersCommand from './commands/admin/users.js';
@@ -73,6 +78,7 @@ const registrationService = new RegistrationService(bot);
 const passwordResetService = new PasswordResetService(bot);
 const passwordUpdateService = new PasswordUpdateService();
 const orderConfirmationService = new OrderConfirmationService(bot);
+const smsCheckerService = new SMSCheckerService(bot);
 
 // ========== MIDDLEWARE ==========
 
@@ -103,8 +109,16 @@ bot.command('buy', requireAuth, buyCommand);
 bot.command('capturapago', requireAuth, capturaPagoCommand);
 bot.command('misordenes', requireAuth, misordenesCommand);
 
+// SMS commands (auth required)
+bot.command('sms', requireAuth, smsCommand);
+bot.command('smsactive', requireAuth, smsActiveCommand);
+bot.command('smshistory', requireAuth, smsHistoryCommand);
+
+
 // Gate commands (auth required + cooldown)
 bot.command('check', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.CHECK), checkCommand);
+bot.command('chk', requireAuth, cooldownMiddleware(BOT_CONFIG.COOLDOWNS.CHECK), checkCommand); // Alias for /check
+
 
 // Admin commands (admin/dev only)
 bot.command('users', requireAuth, requireAdmin, usersCommand);
@@ -134,6 +148,8 @@ bot.action(/^cancel_reset_/, handleCancelReset);
 
 // Menu callback handlers (auth required)
 bot.action('menu_gates', requireAuth, handleGatesMenu);
+bot.action(/^gateway_/, requireAuth, handleGatewayMenu);
+bot.action(/^gate_/, requireAuth, handleGateDetails);
 bot.action('menu_tools', requireAuth, handleToolsMenu);
 bot.action('menu_dev', requireAuth, handleDevMenu);
 bot.action('back_to_start', requireAuth, handleBackToStart);
@@ -151,6 +167,11 @@ bot.on('photo', requireAuth, handlePaymentProofPhoto);
 bot.action(/^confirm_received_/, requireAuth, handleConfirmReceived);
 bot.action(/^confirm_not_received_/, requireAuth, handleConfirmNotReceived);
 
+// SMS callbacks
+bot.action(/^sms_platform_/, requireAuth, handleSMSPlatformSelection);
+bot.action(/^sms_confirm_/, requireAuth, handleSMSConfirmPurchase);
+bot.action('sms_cancel', requireAuth, handleSMSCancel);
+
 // ========== BOT LAUNCH ==========
 
 // Handle graceful shutdown
@@ -165,6 +186,7 @@ const shutdown = async (signal) => {
     passwordResetService.stop();
     passwordUpdateService.stop();
     orderConfirmationService.stop();
+    smsCheckerService.stop();
 
     await bot.stop(signal);
     logger.info('Bot stopped successfully');
@@ -225,6 +247,14 @@ try {
   console.log('✅ Order Confirmation Service started successfully');
 } catch (error) {
   console.error('❌ ERROR starting Order Confirmation Service:', error);
+}
+
+console.log('📦 Starting SMS Checker Service...');
+try {
+  smsCheckerService.start();
+  console.log('✅ SMS Checker Service started successfully');
+} catch (error) {
+  console.error('❌ ERROR starting SMS Checker Service:', error);
 }
 
 // Launch bot

@@ -16,13 +16,16 @@ export const handleGatesMenu = async (ctx) => {
         const activeGates = gates.filter(gate => gate.status === 'active');
 
         if (activeGates.length === 0) {
-            const message = `─────────────────────────
-🛡️ *Gates Activos*
-─────────────────────────
+            const message = `╔═══════════════════════╗
+║   🛡️ *GATES ACTIVOS*   ║
+╚═══════════════════════╝
 
-❌ No hay gates activos disponibles en este momento.
+❌ *No hay gates disponibles*
 
-─────────────────────────`;
+Actualmente no hay gates activos.
+Vuelve más tarde.
+
+━━━━━━━━━━━━━━━━━━━━━━━`;
 
             const keyboard = {
                 inline_keyboard: [
@@ -38,48 +41,47 @@ export const handleGatesMenu = async (ctx) => {
             });
         }
 
-        // Group gates by category
-        const chargeGates = activeGates.filter(g => g.category === 'CHARGE');
-        const authGates = activeGates.filter(g => g.category === 'AUTH');
+        // Group gates by type (gateway)
+        const gatesByType = {};
+        activeGates.forEach(gate => {
+            if (!gatesByType[gate.type]) {
+                gatesByType[gate.type] = [];
+            }
+            gatesByType[gate.type].push(gate);
+        });
 
-        let message = `─────────────────────────
-🛡️ *Gates Activos*
-─────────────────────────\n\n`;
+        // Count active and inactive gates
+        const activeCount = activeGates.length;
+        const inactiveCount = gates.filter(g => g.status !== 'active').length;
+        const totalCount = gates.length;
 
-        // CHARGE Gates
-        if (chargeGates.length > 0) {
-            message += `💳 *CHARGE Gates (${chargeGates.length}):*\n`;
-            chargeGates.forEach((gate, index) => {
-                message += `${index + 1}. \`${gate.name}\` - ${gate.type}\n`;
-                if (gate.description) {
-                    message += `   ℹ️ ${gate.description}\n`;
-                }
-            });
-            message += '\n';
+        let message = `📝 *Gates disponibles*
+
+✅ Encendidos: *${activeCount}*
+❌ Apagados: *${inactiveCount}*
+📊 Total configurados: *${totalCount}*
+
+_Selecciona una pasarela para más detalles._`;
+
+        // Create buttons for each gateway type
+        const buttons = [];
+        const types = Object.keys(gatesByType).sort();
+
+        for (let i = 0; i < types.length; i += 3) {
+            const row = [];
+            for (let j = 0; j < 3 && i + j < types.length; j++) {
+                const type = types[i + j];
+                row.push({
+                    text: `✅ ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+                    callback_data: `gateway_${type}`
+                });
+            }
+            buttons.push(row);
         }
 
-        // AUTH Gates
-        if (authGates.length > 0) {
-            message += `🔐 *AUTH Gates (${authGates.length}):*\n`;
-            authGates.forEach((gate, index) => {
-                message += `${index + 1}. \`${gate.name}\` - ${gate.type}\n`;
-                if (gate.description) {
-                    message += `   ℹ️ ${gate.description}\n`;
-                }
-            });
-            message += '\n';
-        }
+        buttons.push([{ text: '🔙 Volver', callback_data: 'back_to_start' }]);
 
-        message += `─────────────────────────\n\n`;
-        message += `💡 *Tip:* Usa estos gates en la web para validar tarjetas.`;
-
-        const keyboard = {
-            inline_keyboard: [
-                [
-                    { text: '🔙 Regresar', callback_data: 'back_to_start' }
-                ]
-            ]
-        };
+        const keyboard = { inline_keyboard: buttons };
 
         await ctx.editMessageText(message, {
             parse_mode: 'Markdown',
@@ -89,6 +91,117 @@ export const handleGatesMenu = async (ctx) => {
     } catch (error) {
         console.error('Error in gates menu:', error);
         await ctx.answerCbQuery('❌ Error al cargar los gates. Intenta nuevamente.');
+    }
+};
+
+/**
+ * Show gates for a specific gateway type
+ */
+export const handleGatewayMenu = async (ctx) => {
+    try {
+        await ctx.answerCbQuery();
+
+        const gatewayType = ctx.callbackQuery.data.replace('gateway_', '');
+
+        // Get all gates for this gateway
+        const gates = await getAllGates();
+        const gatewayGates = gates.filter(g => g.type === gatewayType && g.status === 'active');
+
+        if (gatewayGates.length === 0) {
+            return ctx.answerCbQuery('❌ No hay gates activos para esta pasarela');
+        }
+
+        const activeCount = gatewayGates.length;
+        const inactiveCount = gates.filter(g => g.type === gatewayType && g.status !== 'active').length;
+
+        const gatewayName = gatewayType.charAt(0).toUpperCase() + gatewayType.slice(1);
+
+        let message = `🌐 *${gatewayName}*
+
+✅ Encendidos: *${activeCount}*
+❌ Apagados: *${inactiveCount}*
+
+_Selecciona un gate para mas información:_`;
+
+        // Create buttons for each gate
+        const buttons = [];
+
+        for (let i = 0; i < gatewayGates.length; i += 2) {
+            const row = [];
+            for (let j = 0; j < 2 && i + j < gatewayGates.length; j++) {
+                const gate = gatewayGates[i + j];
+                row.push({
+                    text: `✅ ${gate.name}`,
+                    callback_data: `gate_${gate.id}`
+                });
+            }
+            buttons.push(row);
+        }
+
+        buttons.push([{ text: '🔙 Volver', callback_data: 'menu_gates' }]);
+
+        const keyboard = { inline_keyboard: buttons };
+
+        await ctx.editMessageText(message, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+        });
+
+    } catch (error) {
+        console.error('Error in gateway menu:', error);
+        await ctx.answerCbQuery('❌ Error al cargar los gates');
+    }
+};
+
+/**
+ * Show detailed information for a specific gate
+ */
+export const handleGateDetails = async (ctx) => {
+    try {
+        await ctx.answerCbQuery();
+
+        const gateId = ctx.callbackQuery.data.replace('gate_', '');
+
+        // Get gate details
+        const gates = await getAllGates();
+        const gate = gates.find(g => g.id === gateId);
+
+        if (!gate) {
+            return ctx.answerCbQuery('❌ Gate no encontrado');
+        }
+
+        const gatewayName = gate.type.charAt(0).toUpperCase() + gate.type.slice(1);
+        const statusEmoji = gate.status === 'active' ? '✅' : '❌';
+        const statusText = gate.status === 'active' ? 'Encendido' : 'Apagado';
+
+        let message = `🎯 *${gate.name}* (${gatewayName})
+
+Estado: ${statusEmoji} *${statusText}*
+Descripción:
+💰 ${gate.description || 'Sin descripción'}
+
+📋 *Ejemplo de uso:*
+\`/vai 4111111111111111|12|2026|000\`
+
+_${gatewayName} charged ${gate.description || 'amount'}_`;
+
+        const buttons = [
+            [
+                { text: '🔙 Atrás', callback_data: `gateway_${gate.type}` },
+                { text: '🛡️ GATES', callback_data: 'menu_gates' }
+            ]
+        ];
+
+        const keyboard = { inline_keyboard: buttons };
+
+        await ctx.editMessageText(message, {
+            parse_mode: 'Markdown',
+            reply_markup: keyboard
+        });
+
+    } catch (error) {
+        console.error('Error in gate details:', error);
+        await ctx.answerCbQuery('❌ Error al cargar detalles del gate');
     }
 };
 
@@ -164,11 +277,11 @@ export const handleDevMenu = async (ctx) => {
 🆔 *ID:* \`1951898071\`
 
 📮 *Soporte:*
-Si tienes algún problema o sugerencia, puedes contactar directamente al desarrollador.
+Si tienes algún problema o sugerencia, contactame.
 
 ──────────────────────
 
-💡 *Tip:* Responde con respeto y proporciona detalles sobre tu consulta.`;
+💡 *Tip:* Proporciona detalles sobre tu consulta.`;
 
         // Create button to contact dev
         const keyboard = {
@@ -280,6 +393,8 @@ export const handleBackToStart = async (ctx) => {
 
 export default {
     handleGatesMenu,
+    handleGatewayMenu,
+    handleGateDetails,
     handleToolsMenu,
     handleDevMenu,
     handleBackToStart
