@@ -37,9 +37,10 @@ import binCommand from './commands/user/bin.js';
 import buyCommand from './commands/user/buy.js';
 import capturaPagoCommand from './commands/user/capturapago.js';
 import misordenesCommand from './commands/user/misordenes.js';
-import smsCommand from './commands/user/sms.js';
-import smsActiveCommand from './commands/user/smsactive.js';
-import smsHistoryCommand from './commands/user/smshistory.js';
+// TODO: Uncomment when SMS feature is ready
+// import smsCommand from './commands/user/sms.js';
+// import smsActiveCommand from './commands/user/smsactive.js';
+// import smsHistoryCommand from './commands/user/smshistory.js';
 
 // Import admin commands
 import usersCommand from './commands/admin/users.js';
@@ -109,10 +110,10 @@ bot.command('buy', requireAuth, buyCommand);
 bot.command('capturapago', requireAuth, capturaPagoCommand);
 bot.command('misordenes', requireAuth, misordenesCommand);
 
-// SMS commands (auth required)
-bot.command('sms', requireAuth, smsCommand);
-bot.command('smsactive', requireAuth, smsActiveCommand);
-bot.command('smshistory', requireAuth, smsHistoryCommand);
+// SMS commands (auth required) - TODO: Uncomment when SMS feature is ready
+// bot.command('sms', requireAuth, smsCommand);
+// bot.command('smsactive', requireAuth, smsActiveCommand);
+// bot.command('smshistory', requireAuth, smsHistoryCommand);
 
 
 // Gate commands (auth required + cooldown)
