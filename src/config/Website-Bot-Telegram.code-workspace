@@ -5,6 +5,15 @@
 		},
 		{
 			"path": "../../../Chk-Website-Bot"
+		},
+		{
+			"path": "../../../Pruebas_AgenteLocal_Gates"
+		},
+		{
+			"path": "../../../Finder Gates"
+		},
+		{
+			"path": "../../../SMS"
 		}
 	],
 	"settings": {}

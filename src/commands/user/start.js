@@ -40,7 +40,7 @@ export const startCommand = async (ctx) => {
 
       // Create modern message with sections
       const message = `──────────────────────
-🔧 *Bienvenido a CHK*
+🔧 *Bienvenido al CHK*
 ──────────────────────
 
 📊 *Tu información:*
