@@ -174,6 +174,10 @@ export const handleGateDetails = async (ctx) => {
         const statusEmoji = gate.status === 'active' ? '✅' : '❌';
         const statusText = gate.status === 'active' ? 'Encendido' : 'Apagado';
 
+        // Determine which command to show
+        const commandToShow = gate.command ? `/${gate.command}` : '/vai';
+        const commandNote = gate.command ? '' : '\n\n⚠️ _Este gate no tiene comando asignado. Usa /vai con el ID del gate._';
+
         let message = `🎯 *${gate.name}* (${gatewayName})
 
 Estado: ${statusEmoji} *${statusText}*
@@ -181,9 +185,9 @@ Descripción:
 💰 ${gate.description || 'Sin descripción'}
 
 📋 *Ejemplo de uso:*
-\`/vai 4111111111111111|12|2026|000\`
+\`${commandToShow} 4111111111111111|12|2026|000\`${commandNote}
 
-_${gatewayName} charged ${gate.description || 'amount'}_`;
+_${gatewayName} - ${gate.description || 'Payment processing'}_`;
 
         const buttons = [
             [
