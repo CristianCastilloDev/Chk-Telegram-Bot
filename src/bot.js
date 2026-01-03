@@ -14,7 +14,7 @@ import RegistrationService from './services/registrationService.js';
 import PasswordResetService from './services/passwordResetService.js';
 import PasswordUpdateService from './services/passwordUpdateService.js';
 import OrderConfirmationService from './services/orderConfirmationService.js';
-import SMSCheckerService from './services/smsCheckerService.js';
+// import SMSCheckerService from './services/smsCheckerService.js'; // TODO: Uncomment when SMS feature is ready
 
 // Import handlers
 import { handleApproveCallback, handleRejectCallback } from './handlers/orderCallbacks.js';
@@ -24,7 +24,7 @@ import { handleGatesMenu, handleGatewayMenu, handleGateDetails, handleToolsMenu,
 import { handleBuyPlan, handleAcceptPurchaseOrder, handleApprovePayment, handleRejectPayment } from './handlers/purchaseOrderCallbacks.js';
 import { handlePaymentProofPhoto } from './handlers/paymentProofHandler.js';
 import { handleConfirmReceived, handleConfirmNotReceived } from './handlers/confirmationCallbacks.js';
-import { handleSMSPlatformSelection, handleSMSConfirmPurchase, handleSMSCancel } from './handlers/smsCallbacks.js';
+// import { handleSMSPlatformSelection, handleSMSConfirmPurchase, handleSMSCancel } from './handlers/smsCallbacks.js'; // TODO: Uncomment when SMS feature is ready
 
 // Import commands
 import startCommand from './commands/user/start.js';
@@ -78,7 +78,7 @@ const registrationService = new RegistrationService(bot);
 const passwordResetService = new PasswordResetService(bot);
 const passwordUpdateService = new PasswordUpdateService();
 const orderConfirmationService = new OrderConfirmationService(bot);
-const smsCheckerService = new SMSCheckerService(bot);
+// const smsCheckerService = new SMSCheckerService(bot); // TODO: Uncomment when SMS feature is ready
 
 // ========== MIDDLEWARE ==========
 
@@ -167,10 +167,10 @@ bot.on('photo', requireAuth, handlePaymentProofPhoto);
 bot.action(/^confirm_received_/, requireAuth, handleConfirmReceived);
 bot.action(/^confirm_not_received_/, requireAuth, handleConfirmNotReceived);
 
-// SMS callbacks
-bot.action(/^sms_platform_/, requireAuth, handleSMSPlatformSelection);
-bot.action(/^sms_confirm_/, requireAuth, handleSMSConfirmPurchase);
-bot.action('sms_cancel', requireAuth, handleSMSCancel);
+// SMS callbacks (TODO: Uncomment when SMS feature is ready)
+// bot.action(/^sms_platform_/, requireAuth, handleSMSPlatformSelection);
+// bot.action(/^sms_confirm_/, requireAuth, handleSMSConfirmPurchase);
+// bot.action('sms_cancel', requireAuth, handleSMSCancel);
 
 // ========== BOT LAUNCH ==========
 
@@ -249,13 +249,14 @@ try {
   console.error('❌ ERROR starting Order Confirmation Service:', error);
 }
 
-console.log('📦 Starting SMS Checker Service...');
-try {
-  smsCheckerService.start();
-  console.log('✅ SMS Checker Service started successfully');
-} catch (error) {
-  console.error('❌ ERROR starting SMS Checker Service:', error);
-}
+// TODO: Uncomment when SMS feature is ready
+// console.log('📦 Starting SMS Checker Service...');
+// try {
+//   smsCheckerService.start();
+//   console.log('✅ SMS Checker Service started successfully');
+// } catch (error) {
+//   console.error('❌ ERROR starting SMS Checker Service:', error);
+// }
 
 // Launch bot
 console.log('🚀 Launching bot...');
